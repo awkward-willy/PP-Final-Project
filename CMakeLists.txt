@@ -59,12 +59,29 @@ set(LIBS
     SDL2_image
 )
 
+set(HEADLESS_SRCS
+    src/controllers/ant.cpp
+    src/controllers/cli.cpp
+    src/controllers/colony.cpp
+    src/controllers/game.cpp
+    src/controllers/random.cpp
+
+    src/models/space.cpp
+    src/models/grid.cpp
+)
+
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g")
 
 add_executable(simulant src/main.cpp ${SRCS} ${HEADERS})
 target_compile_features(simulant PRIVATE cxx_std_17)
 target_include_directories(simulant PUBLIC src/)
 target_link_libraries(simulant ${LIBS})
+
+# Headless version without any SDL dependencies
+add_executable(simulant_headless src/main.cpp ${HEADLESS_SRCS})
+target_compile_features(simulant_headless PRIVATE cxx_std_17)
+target_include_directories(simulant_headless PUBLIC src/)
+target_compile_definitions(simulant_headless PRIVATE HEADLESS_MODE)
 
 # Make test executable
 
@@ -73,3 +90,5 @@ add_executable(run_tests ${TESTS} ${SRCS} ${HEADERS})
 target_compile_features(run_tests PRIVATE cxx_std_17)
 target_include_directories(run_tests PUBLIC src/)
 target_link_libraries(run_tests PRIVATE doctest::doctest ${LIBS})
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/ressources DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

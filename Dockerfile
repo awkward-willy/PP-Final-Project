@@ -26,7 +26,7 @@ RUN mkdir -p build
 
 # Configure and build
 WORKDIR /app/build
-RUN cmake .. && make
+RUN cmake .. && make simulant simulant_headless
 
 # Default command
-CMD ["./simulant"]
+CMD ["./simulant_headless"]
