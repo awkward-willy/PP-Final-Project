@@ -1,0 +1,30 @@
+version: "3"
+services:
+  app:
+    build: .
+    image: simulant:latest
+    container_name: simulant_app
+    # Mount the current directory to /app so you can edit code and rebuild inside the container if needed
+    # However, the Dockerfile already copies files and builds.
+    # If you want to develop, uncomment the next line:
+    # volumes:
+    #   - .:/app
+
+    # X11 Forwarding for GUI
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY=${DISPLAY}
+      - SDL_VIDEODRIVER=x11
+      - XDG_RUNTIME_DIR=/tmp
+
+    # Allow access to host devices (sometimes needed for GPU/Input)
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/snd:/dev/snd
+
+    # Use host network to simplify display connection
+    network_mode: host
+
+    # Enable shared memory for X11
+    ipc: host

@@ -2,13 +2,13 @@
 
 #include <vector>
 
-struct hsv{
-    double h;// angle in degrees
-    double s;// a fraction between 0 and 1
-    double v;// a fraction between 0 and 1
+struct hsv {
+    double h;  // angle in degrees
+    double s;  // a fraction between 0 and 1
+    double v;  // a fraction between 0 and 1
 };
 
-struct rgb{
+struct rgb {
     rgb();
     rgb(double r_in, double g_in, double b_in, double alpha = 1.0);
     rgb(int r_in, int g_in, int b_in, int alpha = 255);
@@ -20,5 +20,5 @@ struct rgb{
     int a;
 };
 
-double  create_base_tint();
-rgb get_tint(size_t index, size_t size, double base_tint, double s, double v);
+double create_base_tint();
+rgb get_tint(std::size_t index, std::size_t size, double base_tint, double s, double v);
