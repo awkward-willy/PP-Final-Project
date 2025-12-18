@@ -7,9 +7,10 @@
 
 // Simulation configuration
 #define NUM_FOOD_SOURCES 10
-#define FOOD_AMOUNT 20
-#define NUM_ANTS 100
+#define FOOD_AMOUNT 5
+#define NUM_ANTS 5000
 #define PHEROMONE_DECAY 0.99f
+#define MAX_TICKS 2147483647  // Maximum number of ticks to prevent overflow
 
 // Coordinate system
 #define X_MIN (-GRID_WIDTH / 2)
