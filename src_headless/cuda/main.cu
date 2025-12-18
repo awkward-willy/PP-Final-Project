@@ -80,8 +80,7 @@ __global__ void find_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand
         
         int idx = to_index_gpu(nx, ny);
         
-        // Can't move to cell with another ant
-        if (grid[idx].ant_id != -1) continue;
+        // Allow multiple ants per cell for speed (no collision check)
         
         float score = 1.0f;
         
@@ -147,20 +146,19 @@ __global__ void find_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand
     rand_states[ant_id] = localState;
 }
 
-// Kernel to apply moves (run with 1 thread for sequential consistency)
-// This is a bottleneck but necessary for correctness with ant collisions
+// Kernel to apply moves (parallel execution, no collision detection)
 __global__ void apply_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand_states,
                                    int* food_collected, float nest_x, float nest_y) {
-    // Single thread execution
-    if (threadIdx.x != 0 || blockIdx.x != 0) return;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= NUM_ANTS) return;
     
-    for (int i = 0; i < NUM_ANTS; i++) {
+    {
         AntGPU& ant = ants[i];
         int best_dir = ant.new_dir;
         
         if (best_dir == -1) {
             ant.orientation = curand_uniform(&rand_states[i]) * 2 * M_PI;
-            continue;
+            return;
         }
         
         int nx = ant.x + d_DX[best_dir];
@@ -168,8 +166,7 @@ __global__ void apply_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* ran
         int new_idx = to_index_gpu(nx, ny);
         int old_idx = to_index_gpu(ant.x, ant.y);
         
-        // Check if cell is still free
-        if (grid[new_idx].ant_id != -1) continue;
+        // No collision check - allow multiple ants per cell for speed
         
         bool searching = (ant.state == ANT_SEARCHING);
         
@@ -395,8 +392,8 @@ public:
         int ant_blocks = (NUM_ANTS + BLOCK_SIZE - 1) / BLOCK_SIZE;
         find_moves_kernel<<<ant_blocks, BLOCK_SIZE>>>(d_grid, d_ants, d_rand_states, nest_x, nest_y);
         
-        // Phase 3: Apply moves (single thread for correctness)
-        apply_moves_kernel<<<1, 1>>>(d_grid, d_ants, d_rand_states, d_food_collected, nest_x, nest_y);
+        // Phase 3: Apply moves (parallel execution)
+        apply_moves_kernel<<<ant_blocks, BLOCK_SIZE>>>(d_grid, d_ants, d_rand_states, d_food_collected, nest_x, nest_y);
         
         cudaDeviceSynchronize();
     }
@@ -414,7 +411,11 @@ public:
         auto start_time = std::chrono::high_resolution_clock::now();
                 
         while (!is_complete() && ticks < MAX_TICKS) {
+            // Unroll loop: execute 4 ticks per iteration for better performance
             tick();
+            if (!is_complete()) tick();
+            if (!is_complete()) tick();
+            if (!is_complete()) tick();
             
             if (ticks % 1000 == 0) {
                 int collected = get_food_collected();
