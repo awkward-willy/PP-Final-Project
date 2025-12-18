@@ -64,7 +64,6 @@ __global__ void find_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand
     curandState localState = rand_states[ant_id];
     
     bool searching = (ant.state == ANT_SEARCHING);
-    float current_dist_sq = distance_sq_gpu(ant.x, ant.y, nest_x, nest_y);
     
     // Store valid moves and scores
     int valid_dirs[8];
@@ -82,7 +81,7 @@ __global__ void find_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand
         
         // Allow multiple ants per cell for speed (no collision check)
         
-        float score = 1.0f;
+        float score = 1.0f;  // Base score
         
         if (searching) {
             // Immediate return for food
@@ -92,19 +91,38 @@ __global__ void find_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand
                 return;
             }
             
-            score += grid[idx].food_pheromone * 5.0f;
+            // ACO pheromone component (tau^alpha, alpha=2)
+            float pheromone = grid[idx].food_pheromone;
+            float tau = (pheromone + 0.1f);
+            score += tau * tau * 8.0f;  // Match visualization
             
-            float new_dist_sq = distance_sq_gpu(nx, ny, nest_x, nest_y);
-            if (new_dist_sq > current_dist_sq) {
-                score += 2.0f;
+            // Edge avoidance - prevent getting stuck in corners
+            bool near_edge = (ant.x <= X_MIN + 3 || ant.x >= X_MAX - 3 ||
+                              ant.y <= Y_MIN + 3 || ant.y >= Y_MAX - 3);
+            if (near_edge) {
+                // Calculate direction toward center (nest)
+                float to_center_x = nest_x - ant.x;
+                float to_center_y = nest_y - ant.y;
+                float move_x = (float)d_DX[d];
+                float move_y = (float)d_DY[d];
+                // Dot product: positive if moving toward center, negative if toward edge
+                float dot = move_x * to_center_x + move_y * to_center_y;
+                if (dot > 0) {
+                    score += 5.0f;  // Strong reward for moving toward center
+                } else {
+                    score *= 0.1f;  // Strong penalty for moving toward edge
+                }
             }
             
+            // Momentum: prefer continuing in current direction
             float angle = atan2f((float)(ny - ant.y), (float)(nx - ant.x));
             float angle_diff = fabsf(angle - ant.orientation);
             if (angle_diff > M_PI) angle_diff = 2 * M_PI - angle_diff;
-            score += (M_PI - angle_diff) / M_PI * 3.0f;
+            float momentum = (M_PI - angle_diff) / M_PI;
+            score += momentum * 2.0f;
             
-            score += curand_uniform(&localState) * 2.0f;
+            // Random exploration for diversity
+            score += curand_uniform(&localState) * 3.0f;
         } else {
             // Immediate return for nest
             if (grid[idx].type == CELL_NEST) {
@@ -113,8 +131,24 @@ __global__ void find_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand
                 return;
             }
             
-            score = grid[idx].nest_pheromone * 10.0f;
-            score += curand_uniform(&localState) * 0.5f;
+            // Strong heuristic: prefer moving towards nest (this is the main driver)
+            float current_dist = sqrtf(distance_sq_gpu(ant.x, ant.y, nest_x, nest_y));
+            float new_dist = sqrtf(distance_sq_gpu(nx, ny, nest_x, nest_y));
+            
+            // Strongly reward moving closer to nest
+            if (new_dist < current_dist) {
+                score += 50.0f;  // Strong reward for getting closer
+            } else {
+                score *= 0.1f;  // Strong penalty for moving away
+            }
+
+            // Additional inverse distance heuristic
+            if (new_dist > 0) {
+                score += (1.0f / new_dist) * 30.0f;
+            }
+            
+            // Very small random component (almost deterministic return)
+            score += curand_uniform(&localState) * 0.2f;
         }
         
         valid_dirs[num_valid] = d;
@@ -129,7 +163,7 @@ __global__ void find_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* rand
         return;
     }
     
-    // Probabilistic selection
+    // Roulette wheel selection
     float r = curand_uniform(&localState) * total_score;
     float cumulative = 0.0f;
     int selected = valid_dirs[num_valid - 1];
@@ -184,7 +218,7 @@ __global__ void apply_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* ran
             if (ant.has_food) {
                 atomicAdd(food_collected, 1);
                 ant.has_food = 0;
-                grid[old_idx].food_pheromone += 1.0f;
+                grid[old_idx].food_pheromone += 5.0f;  // Stronger pheromone deposit
             }
             ant.state = ANT_SEARCHING;
             ant.orientation = curand_uniform(&rand_states[i]) * 2 * M_PI;
@@ -192,7 +226,7 @@ __global__ void apply_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* ran
         
         // Leave pheromone trail if returning with food
         if (ant.state == ANT_RETURNING && ant.has_food) {
-            grid[old_idx].food_pheromone += 1.0f;
+            grid[old_idx].food_pheromone += 3.0f;  // Stronger trail
         }
         
         // Move ant

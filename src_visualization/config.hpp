@@ -5,6 +5,10 @@
 #define GRID_HEIGHT 256
 #define GRID_SIZE (GRID_WIDTH * GRID_HEIGHT)
 
+// For compatibility with original view code
+#define SPACE_WIDTH GRID_WIDTH
+#define SPACE_HEIGHT GRID_HEIGHT
+
 // Simulation configuration
 #define NUM_FOOD_SOURCES 7
 #define FOOD_AMOUNT 2000       // Amount of food at each source

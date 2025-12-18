@@ -1,0 +1,29 @@
+services:
+  ant-visualization:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ant-colony-sim
+
+    # X11 forwarding for GUI display
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
+
+    volumes:
+      # X11 socket for display (with SELinux label)
+      - /tmp/.X11-unix:/tmp/.X11-unix:z
+
+    # Network mode for X11 access
+    network_mode: host
+
+    # Security context for X11 access (required for some systems)
+    security_opt:
+      - label:disable
+
+    # Interactive mode
+    stdin_open: true
+    tty: true
+
+    # Restart policy
+    restart: "no"

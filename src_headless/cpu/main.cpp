@@ -142,10 +142,13 @@ class AntSimulationCPU {
         }
     }
 
+    // ACO algorithm with boundary avoidance
     int find_best_neighbor(Ant& ant, bool searching_for_food) {
         std::vector<std::pair<int, double>> valid_moves;  // direction, score
 
-        double current_dist_sq = distance_squared(ant.x, ant.y, nest_x, nest_y);
+        // Check if near boundary - need to turn back
+        bool near_edge = (ant.x <= X_MIN + 3 || ant.x >= X_MAX - 3 ||
+                          ant.y <= Y_MIN + 3 || ant.y >= Y_MAX - 3);
 
         for (int d = 0; d < 8; d++) {
             int nx = ant.x + DX[d];
@@ -162,41 +165,62 @@ class AntSimulationCPU {
 
             double score = 1.0;  // Base score
 
+            // Boundary avoidance - strong preference to move toward center when near edge
+            if (near_edge) {
+                double to_center_x = nest_x - ant.x;
+                double to_center_y = nest_y - ant.y;
+                double dot = DX[d] * to_center_x + DY[d] * to_center_y;
+                if (dot > 0) {
+                    score += 5.0;
+                } else {
+                    score *= 0.1;
+                }
+            }
+
             if (searching_for_food) {
-                // Strong preference for actual food
+                // Immediately go to food if found
                 if (grid[idx].type == CellType::FOOD && grid[idx].food > 0) {
-                    return d;  // Immediately go to food
+                    return d;
                 }
 
-                // Prefer cells with food pheromones
-                score += grid[idx].food_pheromone * 5.0;
+                // ACO: Follow food pheromone trails
+                double pheromone = grid[idx].food_pheromone;
+                score += std::pow(pheromone + 0.1, 2.0) * 8.0;
 
-                // Prefer moving away from nest (exploration)
-                double new_dist_sq = distance_squared(nx, ny, nest_x, nest_y);
-                if (new_dist_sq > current_dist_sq) {
-                    score += 2.0;
-                }
-
-                // Follow orientation (momentum)
+                // Momentum: prefer continuing in current direction
                 double angle = std::atan2(ny - ant.y, nx - ant.x);
                 double angle_diff = std::abs(angle - ant.orientation);
                 if (angle_diff > M_PI)
                     angle_diff = 2 * M_PI - angle_diff;
-                score += (M_PI - angle_diff) / M_PI * 3.0;
+                double momentum = (M_PI - angle_diff) / M_PI;
+                score += momentum * 2.0;
 
-                // Add randomness for exploration
-                score += rng.random_double() * 2.0;
+                // Random exploration component
+                score += rng.random_double() * 3.0;
             } else {
-                // Returning to nest - follow nest pheromones
-                score = grid[idx].nest_pheromone * 10.0;
-
-                // Strong preference for nest
+                // Returning to nest with food - go directly to nest!
                 if (grid[idx].type == CellType::NEST) {
-                    return d;  // Immediately go to nest
+                    return d;
                 }
 
-                // Add small randomness
-                score += rng.random_double() * 0.5;
+                // Strong heuristic: prefer moving towards nest (this is the main driver)
+                double current_dist = distance(ant.x, ant.y, nest_x, nest_y);
+                double new_dist = distance(nx, ny, nest_x, nest_y);
+
+                // Strongly reward moving closer to nest
+                if (new_dist < current_dist) {
+                    score += 50.0;  // Strong reward for getting closer
+                } else {
+                    score *= 0.1;  // Strong penalty for moving away
+                }
+
+                // Additional inverse distance heuristic
+                if (new_dist > 0) {
+                    score += (1.0 / new_dist) * 30.0;
+                }
+
+                // Very small random component (almost deterministic return)
+                score += rng.random_double() * 0.2;
             }
 
             valid_moves.push_back({d, score});
@@ -205,7 +229,7 @@ class AntSimulationCPU {
         if (valid_moves.empty())
             return -1;
 
-        // Select move with probability proportional to score
+        // Roulette wheel selection (probability proportional to score)
         double total_score = 0;
         for (auto& move : valid_moves) {
             total_score += move.second;
@@ -222,7 +246,6 @@ class AntSimulationCPU {
 
         return valid_moves.back().first;
     }
-
     void update_ant(int ant_id) {
         Ant& ant = ants[ant_id];
 
@@ -258,7 +281,7 @@ class AntSimulationCPU {
                 ant.has_food = false;
 
                 // Leave food pheromone trail
-                grid[old_idx].food_pheromone += 1.0;
+                grid[old_idx].food_pheromone += 5.0;  // Stronger pheromone deposit
             }
             ant.state = AntState::SEARCHING;
             ant.orientation = rng.random_double(0, 2 * M_PI);
@@ -266,10 +289,8 @@ class AntSimulationCPU {
 
         // If returning with food, leave pheromone trail
         if (ant.state == AntState::RETURNING && ant.has_food) {
-            grid[old_idx].food_pheromone += 1.0;
-        }
-
-        // Move ant
+            grid[old_idx].food_pheromone += 3.0;  // Stronger trail
+        }  // Move ant
         grid[old_idx].ant_id = -1;
         grid[new_idx].ant_id = ant_id;
         ant.x = nx;
