@@ -6,8 +6,8 @@
 #define GRID_SIZE (GRID_WIDTH * GRID_HEIGHT)
 
 // Simulation configuration
-#define NUM_FOOD_SOURCES 10
-#define FOOD_AMOUNT 20         // Amount of food at each source
+#define NUM_FOOD_SOURCES 7
+#define FOOD_AMOUNT 2000         // Amount of food at each source
 #define NUM_ANTS 5000          // Number of ants in the colony
 #define PHEROMONE_DECAY 0.975  // Pheromone decay rate per tick (slower decay)
 #define MAX_TICKS 2147483647  // Maximum number of ticks to prevent overflow

@@ -1,18 +1,40 @@
 #!/bin/bash
+#SBATCH -N 1
+#SBATCH -n 1
+#SBATCH --gpus-per-node=1
+#SBATCH -A ACD114118
+#SBATCH -t 00:10:00
+#SBATCH -J ant_benchmark
 
 # Ant Colony Simulation Benchmark Script
 
 echo "=== Ant Colony Simulation Benchmark ==="
 echo ""
 
+# Load required modules
+module load cmake
+module load cuda
+
 # Build all versions
 echo "Building all versions..."
-make cpu openmp 2>/dev/null
+cd ~/pp_fp
+
+# Create build directory and run cmake if needed
+mkdir -p build
+cd build
+if [ ! -f "Makefile" ]; then
+    echo "Running cmake..."
+    cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_CUDA=ON ..
+fi
+
+make -j$(nproc) 2>&1
 
 if [ $? -ne 0 ]; then
     echo "Build failed!"
     exit 1
 fi
+
+cd ~/pp_fp
 
 echo ""
 echo "=== Configuration ==="
