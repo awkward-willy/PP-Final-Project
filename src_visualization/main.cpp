@@ -85,8 +85,8 @@ class RNG {
 // Visualization constants
 // ============================================================================
 
-constexpr int WINDOW_WIDTH = 1024;
-constexpr int WINDOW_HEIGHT = 1024;
+constexpr int WINDOW_WIDTH = 2048;
+constexpr int WINDOW_HEIGHT = 2048;
 constexpr int CELL_SIZE = WINDOW_WIDTH / GRID_WIDTH;
 
 // ============================================================================
@@ -252,8 +252,8 @@ class AntSimulation {
 
             int idx = to_index(nx, ny);
 
-            if (grid[idx].ant_id != -1)
-                continue;
+            // Allow multiple ants per cell - no collision check
+            // This prevents traffic jams on pheromone trails
 
             double score = 1.0;  // Base score
 
@@ -379,8 +379,7 @@ class AntSimulation {
             grid[old_idx].food_pheromone += 3.0;  // Stronger trail
         }
 
-        grid[old_idx].ant_id = -1;
-        grid[new_idx].ant_id = ant_id;
+        // Move ant (no ant_id tracking needed - multiple ants can share cells)
         ant.x = nx;
         ant.y = ny;
 

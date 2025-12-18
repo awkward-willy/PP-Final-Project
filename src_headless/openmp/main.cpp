@@ -181,9 +181,7 @@ class AntSimulationOpenMP {
 
             int idx = to_index(nx, ny);
 
-            // Can't move to cell with another ant
-            if (grid[idx].ant_id != -1)
-                continue;
+            // Allow multiple ants per cell - no collision check
 
             double score = 1.0;  // Base score
 
@@ -298,31 +296,7 @@ class AntSimulationOpenMP {
             int new_idx = to_index(nx, ny);
             int old_idx = to_index(ant.x, ant.y);
 
-            // Skip if target cell is now occupied
-            if (grid[new_idx].ant_id != -1 && grid[new_idx].ant_id != i) {
-                // Try a different direction - recalculate
-                std::vector<int> alt_dirs;
-                for (int d = 0; d < 8; d++) {
-                    int anx = ant.x + DX[d];
-                    int any = ant.y + DY[d];
-                    if (!in_bounds(anx, any))
-                        continue;
-                    int aidx = to_index(anx, any);
-                    if (grid[aidx].ant_id == -1) {
-                        alt_dirs.push_back(d);
-                    }
-                }
-                if (!alt_dirs.empty()) {
-                    best_dir = alt_dirs[thread_rngs[0].random_int(0, alt_dirs.size() - 1)];
-                    nx = ant.x + DX[best_dir];
-                    ny = ant.y + DY[best_dir];
-                    new_idx = to_index(nx, ny);
-                } else {
-                    ant.orientation = thread_rngs[0].random_double(0, 2 * M_PI);
-                    continue;
-                }
-            }
-
+            // Allow multiple ants per cell - no collision check needed
             bool searching = (ant.state == AntState::SEARCHING);
 
             // Check if we found food while searching
@@ -349,9 +323,7 @@ class AntSimulationOpenMP {
                 grid[old_idx].food_pheromone += 3.0;
             }
 
-            // Move ant
-            grid[old_idx].ant_id = -1;
-            grid[new_idx].ant_id = i;
+            // Move ant (allow multiple ants per cell)
             ant.x = nx;
             ant.y = ny;
 

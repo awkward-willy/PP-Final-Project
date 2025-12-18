@@ -1,8 +1,8 @@
 #pragma once
 
 // Grid configuration - 256x256 grid
-#define GRID_WIDTH 256
-#define GRID_HEIGHT 256
+#define GRID_WIDTH 50
+#define GRID_HEIGHT 50
 #define GRID_SIZE (GRID_WIDTH * GRID_HEIGHT)
 
 // For compatibility with original view code

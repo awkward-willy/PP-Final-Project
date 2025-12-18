@@ -159,9 +159,7 @@ class AntSimulationCPU {
 
             int idx = to_index(nx, ny);
 
-            // Can't move to cell with another ant
-            if (grid[idx].ant_id != -1)
-                continue;
+            // Allow multiple ants per cell - no collision check
 
             double score = 1.0;  // Base score
 
@@ -290,9 +288,9 @@ class AntSimulationCPU {
         // If returning with food, leave pheromone trail
         if (ant.state == AntState::RETURNING && ant.has_food) {
             grid[old_idx].food_pheromone += 3.0;  // Stronger trail
-        }  // Move ant
-        grid[old_idx].ant_id = -1;
-        grid[new_idx].ant_id = ant_id;
+        }
+
+        // Move ant (allow multiple ants per cell)
         ant.x = nx;
         ant.y = ny;
 

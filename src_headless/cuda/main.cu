@@ -229,9 +229,7 @@ __global__ void apply_moves_kernel(CellGPU* grid, AntGPU* ants, curandState* ran
             grid[old_idx].food_pheromone += 3.0f;  // Stronger trail
         }
         
-        // Move ant
-        grid[old_idx].ant_id = -1;
-        grid[new_idx].ant_id = i;
+        // Move ant (allow multiple ants per cell)
         ant.x = nx;
         ant.y = ny;
         
