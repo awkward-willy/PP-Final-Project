@@ -329,20 +329,24 @@ public:
         std::vector<std::pair<int, int>> food_locations;
         total_food_available = 0;
         
+        // Calculate dynamic radius based on grid size (30% to 80% of half-width)
+        float max_radius = std::min(GRID_WIDTH, GRID_HEIGHT) / 2.0f * 0.8f;
+        float min_radius = std::min(GRID_WIDTH, GRID_HEIGHT) / 2.0f * 0.3f;
+        
         for (int i = 0; i < NUM_FOOD_SOURCES; i++) {
             int best_x = 0, best_y = 0;
             float best_score = -1;
             
             for (int attempt = 0; attempt < 50; attempt++) {
-                // Place food at radius 30-80 from nest
+                // Place food at dynamic radius from nest
                 float angle = dist(rng) * 2 * M_PI;
-                float radius = 30.0f + dist(rng) * 50.0f;
+                float radius = min_radius + dist(rng) * (max_radius - min_radius);
                 int fx = (int)(nest_x + radius * std::cos(angle));
                 int fy = (int)(nest_y + radius * std::sin(angle));
                 
                 // Clamp to bounds
-                fx = std::max(X_MIN + 5, std::min(X_MAX - 5, fx));
-                fy = std::max(Y_MIN + 5, std::min(Y_MAX - 5, fy));
+                fx = std::max(X_MIN + 2, std::min(X_MAX - 2, fx));
+                fy = std::max(Y_MIN + 2, std::min(Y_MAX - 2, fy));
                 
                 float score = 0;
                 
