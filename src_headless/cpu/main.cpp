@@ -58,21 +58,25 @@ class AntSimulationCPU {
         std::vector<std::pair<int, int>> food_locations;
         stats.total_food_available = 0;
 
+        // Calculate dynamic radius based on grid size (30% to 80% of half-width)
+        double max_radius = std::min(GRID_WIDTH, GRID_HEIGHT) / 2.0 * 0.8;
+        double min_radius = std::min(GRID_WIDTH, GRID_HEIGHT) / 2.0 * 0.3;
+
         for (int i = 0; i < NUM_FOOD_SOURCES; i++) {
             // Find a good location for food (at moderate distance from nest)
             int best_x = 0, best_y = 0;
             double best_score = -1;
 
             for (int attempt = 0; attempt < 50; attempt++) {
-                // Place food at radius 30-80 from nest
+                // Place food at dynamic radius from nest
                 double angle = rng.random_double(0, 2 * M_PI);
-                double radius = rng.random_double(30, 80);
+                double radius = rng.random_double(min_radius, max_radius);
                 int fx = (int)(nest_x + radius * std::cos(angle));
                 int fy = (int)(nest_y + radius * std::sin(angle));
 
                 // Clamp to bounds
-                fx = std::max(X_MIN + 5, std::min(X_MAX - 5, fx));
-                fy = std::max(Y_MIN + 5, std::min(Y_MAX - 5, fy));
+                fx = std::max(X_MIN + 2, std::min(X_MAX - 2, fx));
+                fy = std::max(Y_MIN + 2, std::min(Y_MAX - 2, fy));
 
                 double score = 0;
 

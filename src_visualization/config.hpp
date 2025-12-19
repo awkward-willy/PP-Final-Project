@@ -1,8 +1,8 @@
 #pragma once
 
 // Grid configuration - 256x256 grid
-#define GRID_WIDTH 50
-#define GRID_HEIGHT 50
+#define GRID_WIDTH 64
+#define GRID_HEIGHT 64
 #define GRID_SIZE (GRID_WIDTH * GRID_HEIGHT)
 
 // For compatibility with original view code
@@ -10,9 +10,9 @@
 #define SPACE_HEIGHT GRID_HEIGHT
 
 // Simulation configuration
-#define NUM_FOOD_SOURCES 7
-#define FOOD_AMOUNT 2000       // Amount of food at each source
-#define NUM_ANTS 5000          // Number of ants in the colony
+#define NUM_FOOD_SOURCES 10
+#define FOOD_AMOUNT 20         // Amount of food at each source
+#define NUM_ANTS 128           // Number of ants in the colony
 #define PHEROMONE_DECAY 0.995  // Pheromone decay rate per tick (slower decay)
 
 #define MAX_TICKS 2147483647  // Maximum number of ticks to prevent overflow

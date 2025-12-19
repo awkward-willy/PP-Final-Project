@@ -388,10 +388,72 @@ class AntSimulation {
         }
     }
 
+    void relocate_food() {
+        // Clear existing food
+        for (int i = 0; i < GRID_SIZE; i++) {
+            if (grid[i].type == CellType::FOOD) {
+                grid[i].type = CellType::EMPTY;
+                grid[i].food = 0;
+            }
+        }
+
+        // Place new food sources
+        std::vector<std::pair<int, int>> food_locations;
+        RNG& rng = rngs[0];
+
+        // Calculate dynamic radius based on grid size
+        // Use 30% to 80% of the half-width (distance from center to edge)
+        double max_radius = std::min(GRID_WIDTH, GRID_HEIGHT) / 2.0 * 0.8;
+        double min_radius = std::min(GRID_WIDTH, GRID_HEIGHT) / 2.0 * 0.3;
+
+        for (int i = 0; i < NUM_FOOD_SOURCES; i++) {
+            int best_x = 0, best_y = 0;
+            double best_score = -1;
+
+            for (int attempt = 0; attempt < 50; attempt++) {
+                double angle = rng.random_double(0, 2 * M_PI);
+                double radius = rng.random_double(min_radius, max_radius);
+                int fx = (int)(nest_x + radius * std::cos(angle));
+                int fy = (int)(nest_y + radius * std::sin(angle));
+
+                fx = std::max(X_MIN + 2, std::min(X_MAX - 2, fx));
+                fy = std::max(Y_MIN + 2, std::min(Y_MAX - 2, fy));
+
+                double score = 0;
+                for (auto& loc : food_locations) {
+                    score += distance_squared(fx, fy, loc.first, loc.second);
+                }
+                if (food_locations.empty())
+                    score = 1;
+
+                if (score > best_score) {
+                    best_score = score;
+                    best_x = fx;
+                    best_y = fy;
+                }
+            }
+
+            int idx = to_index(best_x, best_y);
+            grid[idx].type = CellType::FOOD;
+            grid[idx].food = FOOD_AMOUNT;
+            food_locations.push_back({best_x, best_y});
+            stats.total_food_available += FOOD_AMOUNT;
+        }
+
+        // Ensure simulation continues
+        simulation_complete = false;
+    }
+
     void tick() {
         auto start = std::chrono::high_resolution_clock::now();
 
         stats.ticks++;
+
+        // Relocate food every 100,000 ticks
+        if (stats.ticks % 100000 == 0) {
+            relocate_food();
+        }
+
         decay_pheromones();
 
         // Sequential update (same as CPU version for correctness)
