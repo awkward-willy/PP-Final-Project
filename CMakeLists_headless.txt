@@ -1,0 +1,144 @@
+cmake_minimum_required(VERSION 3.18)
+
+project(ant_simulation VERSION 1.0.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Option to enable CUDA
+option(ENABLE_CUDA "Enable CUDA support" OFF)
+
+# Common include directories
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src_headless)
+
+# ============================================================
+# CPU Version (Sequential)
+# ============================================================
+add_executable(ant_cpu
+    src_headless/cpu/main.cpp
+)
+target_compile_features(ant_cpu PRIVATE cxx_std_17)
+target_compile_options(ant_cpu PRIVATE -O3 -march=native)
+
+# ============================================================
+# OpenMP Version
+# ============================================================
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    add_executable(ant_openmp
+        src_headless/openmp/main.cpp
+    )
+    target_compile_features(ant_openmp PRIVATE cxx_std_17)
+    target_compile_options(ant_openmp PRIVATE -O3 -march=native)
+    target_link_libraries(ant_openmp PRIVATE OpenMP::OpenMP_CXX)
+else()
+    message(WARNING "OpenMP not found, skipping OpenMP version")
+endif()
+
+# ============================================================
+# CUDA Version
+# ============================================================
+if(ENABLE_CUDA)
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    
+    add_executable(ant_cuda
+        src_headless/cuda/main.cu
+    )
+    
+    set_target_properties(ant_cuda PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES "60;70;75;80;86"
+    )
+    
+    target_compile_options(ant_cuda PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-O3>
+    )
+    
+    target_link_libraries(ant_cuda PRIVATE
+        CUDA::cudart
+        CUDA::curand
+    )
+else()
+    message(STATUS "CUDA disabled. Use -DENABLE_CUDA=ON to enable.")
+endif()
+
+# ============================================================
+# Original GUI Version (Optional)
+# ============================================================
+option(BUILD_GUI "Build the original GUI version" OFF)
+
+if(BUILD_GUI)
+    find_package(doctest REQUIRED)
+    include(doctest)
+    
+    find_package(SDL2 REQUIRED)
+    include_directories(${SDL2_INCLUDE_DIRS})
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include") 
+    
+    set(SRCS
+        src/controllers/ant.cpp
+        src/controllers/cli.cpp
+        src/controllers/colony.cpp
+        src/controllers/game.cpp
+        src/controllers/random.cpp
+        src/models/space.cpp
+        src/models/grid.cpp
+        src/view/view.cpp
+        src/view/color.cpp
+        src/view/circle.cpp
+        src/view/update.cpp
+        src/view/hud.cpp
+        src/view/render.cpp
+    )
+    
+    set(HEADERS
+        src/controllers/ant.hpp
+        src/controllers/cli.hpp
+        src/controllers/game.hpp
+        src/controllers/random.hpp
+        src/models/space.hpp
+        src/models/grid.hpp
+        src/models/grid.tpp
+        src/view/view.hpp
+        src/view/color.hpp
+        src/view/hud.hpp
+    )
+    
+    set(LIBS
+        SDL2
+        SDL2_ttf
+        SDL2_image
+    )
+    
+    add_executable(simulant src/main.cpp ${SRCS} ${HEADERS})
+    target_compile_features(simulant PRIVATE cxx_std_17)
+    target_include_directories(simulant PUBLIC src/)
+    target_link_libraries(simulant ${LIBS})
+    
+    # Tests
+    set(TESTS
+        tests/tests.cpp
+        tests/controllers/ant.cpp
+        tests/controllers/random.cpp
+        tests/models/grid.cpp
+        tests/models/space.cpp
+    )
+    
+    add_executable(run_tests ${TESTS} ${SRCS} ${HEADERS})
+    target_compile_features(run_tests PRIVATE cxx_std_17)
+    target_include_directories(run_tests PUBLIC src/)
+    target_link_libraries(run_tests PRIVATE doctest::doctest ${LIBS})
+endif()
+
+# ============================================================
+# Summary
+# ============================================================
+message(STATUS "")
+message(STATUS "=== Build Configuration ===")
+message(STATUS "CPU version:    Enabled")
+message(STATUS "OpenMP version: ${OpenMP_CXX_FOUND}")
+message(STATUS "CUDA version:   ${ENABLE_CUDA}")
+message(STATUS "GUI version:    ${BUILD_GUI}")
+message(STATUS "===========================")
+message(STATUS "")
